@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Body
 from fastapi.responses import StreamingResponse
-from docxtpl import DocxTemplate
+from docxtpl import DocxTemplate, InlineImage
+from docx.shared import Mm
 import os
 from datetime import datetime
 from docx2pdf import convert
@@ -26,7 +27,7 @@ class RentBillData(BaseModel):
     total_after_increment: str
     tds_amount: str
     amount_paid: str
-    image_base64: Optional[str] = None  # Optional base64 encoded image
+    image_base64: Optional[str] = None
 
 def generate_rent_bill(data: RentBillData):
     try:
@@ -67,8 +68,9 @@ def generate_rent_bill(data: RentBillData):
                     with open(image_path, "wb") as img_file:
                         img_file.write(image_data)
                     
-                    # Add image to context
-                    context["image"] = image_path
+                    # Create InlineImage object with proper size
+                    image = InlineImage(doc, image_path, width=Mm(30))  # 30mm width
+                    context["image"] = image
                 except Exception as e:
                     raise ValueError(f"Failed to process image: {str(e)}")
 
