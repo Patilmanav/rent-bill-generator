@@ -1,30 +1,16 @@
-# Use Ubuntu as base image for better Wine support
-FROM ubuntu:22.04
+# Use a pre-built Wine image
+FROM scottyhardy/docker-wine:latest
 
-# Set environment variables to avoid interactive prompts
+# Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
 ENV WINEARCH=win64
 ENV WINEPREFIX=/root/.wine
 
-# Install system dependencies
+# Install Python and dependencies
 RUN apt-get update && apt-get install -y \
-    wget \
-    gnupg2 \
-    software-properties-common \
-    && wget -qO- https://dl.winehq.org/wine-builds/winehq.key | apt-key add - \
-    && apt-add-repository 'deb https://dl.winehq.org/wine-builds/ubuntu/ jammy main' \
-    && apt-get update && apt-get install -y \
-    winehq-stable \
-    winetricks \
+    python3.9 \
+    python3-pip \
     xvfb \
-    python3.11 \
-    python3-pip \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Python 3.11 and pip
-RUN apt-get update && apt-get install -y \
-    python3.11 \
-    python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
 # Set up Wine
