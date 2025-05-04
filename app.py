@@ -4,12 +4,12 @@ from docxtpl import DocxTemplate, InlineImage
 from docx.shared import Mm
 import os
 from datetime import datetime
-from docx2pdf import convert
 import tempfile
 from typing import Optional
 from pydantic import BaseModel
 import io
 import base64
+import subprocess
 
 app = FastAPI()
 
@@ -28,6 +28,27 @@ class RentBillData(BaseModel):
     tds_amount: str
     amount_paid: str
     image_base64: Optional[str] = None
+
+def convert_docx_to_pdf(docx_path, pdf_path):
+    try:
+        # Use LibreOffice to convert DOCX to PDF
+        cmd = [
+            'libreoffice',
+            '--headless',
+            '--convert-to',
+            'pdf',
+            '--outdir',
+            os.path.dirname(pdf_path),
+            docx_path
+        ]
+        subprocess.run(cmd, check=True)
+        
+        # Verify the PDF was created
+        if not os.path.exists(pdf_path):
+            raise RuntimeError(f"PDF file was not generated: {pdf_path}")
+            
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Failed to convert DOCX to PDF using LibreOffice: {str(e)}")
 
 def generate_rent_bill(data: RentBillData):
     try:
@@ -82,14 +103,8 @@ def generate_rent_bill(data: RentBillData):
             doc.render(context)
             doc.save(output_docx)
 
-            # Convert DOCX to PDF using docx2pdf
-            try:
-                convert(output_docx, output_pdf)
-            except Exception as e:
-                raise RuntimeError(f"Failed to convert DOCX to PDF: {str(e)}")
-
-            if not os.path.exists(output_pdf):
-                raise FileNotFoundError(f"PDF file was not generated: {output_pdf}")
+            # Convert DOCX to PDF using LibreOffice
+            convert_docx_to_pdf(output_docx, output_pdf)
 
             # Read the PDF file into memory
             with open(output_pdf, "rb") as f:
