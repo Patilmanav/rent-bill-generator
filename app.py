@@ -8,6 +8,7 @@ import tempfile
 from typing import Optional
 from pydantic import BaseModel
 import io
+import base64
 
 app = FastAPI()
 
@@ -25,6 +26,7 @@ class RentBillData(BaseModel):
     total_after_increment: str
     tds_amount: str
     amount_paid: str
+    image_base64: Optional[str] = None  # Optional base64 encoded image
 
 def generate_rent_bill(data: RentBillData):
     try:
@@ -53,6 +55,22 @@ def generate_rent_bill(data: RentBillData):
                 "tds_amount": data.tds_amount,
                 "amount_paid": data.amount_paid
             }
+
+            # Handle image if provided
+            if data.image_base64:
+                try:
+                    # Decode base64 image
+                    image_data = base64.b64decode(data.image_base64)
+                    
+                    # Save image to temporary file
+                    image_path = os.path.join(temp_dir, "temp_image.png")
+                    with open(image_path, "wb") as img_file:
+                        img_file.write(image_data)
+                    
+                    # Add image to context
+                    context["image"] = image_path
+                except Exception as e:
+                    raise ValueError(f"Failed to process image: {str(e)}")
 
             # Generate unique filenames in temp directory
             output_docx = os.path.join(temp_dir, "rent_bill.docx")
