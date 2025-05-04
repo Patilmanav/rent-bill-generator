@@ -10,6 +10,8 @@ from pydantic import BaseModel
 import io
 import base64
 import subprocess
+import time
+import win32com.client
 
 app = FastAPI()
 
@@ -31,16 +33,28 @@ class RentBillData(BaseModel):
 
 def convert_docx_to_pdf(docx_path, pdf_path):
     try:
-        # Use LibreOffice to convert DOCX to PDF
+        # Start Xvfb for virtual display
+        xvfb_process = subprocess.Popen(['Xvfb', ':1', '-screen', '0', '1024x768x24'])
+        
+        # Set DISPLAY environment variable
+        os.environ['DISPLAY'] = ':1'
+        
+        # Wait for Xvfb to start
+        time.sleep(2)
+        
+        # Use Wine to run Word for conversion
         cmd = [
-            'libreoffice',
-            '--headless',
-            '--convert-to',
-            'pdf',
-            '--outdir',
-            os.path.dirname(pdf_path),
-            docx_path
+            'wine',
+            'C:\\Program Files\\Microsoft Office\\Office16\\WINWORD.EXE',
+            '/q',  # Quiet mode
+            '/n',  # Start without a document
+            '/mFilePrintDefault',  # Print with default settings
+            '/mFileSaveAs',  # Save as
+            '/mFileCloseOrExit',  # Close after saving
+            docx_path,
+            pdf_path
         ]
+        
         subprocess.run(cmd, check=True)
         
         # Verify the PDF was created
@@ -48,7 +62,11 @@ def convert_docx_to_pdf(docx_path, pdf_path):
             raise RuntimeError(f"PDF file was not generated: {pdf_path}")
             
     except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"Failed to convert DOCX to PDF using LibreOffice: {str(e)}")
+        raise RuntimeError(f"Failed to convert DOCX to PDF using Wine: {str(e)}")
+    finally:
+        # Clean up Xvfb process
+        xvfb_process.terminate()
+        xvfb_process.wait()
 
 def generate_rent_bill(data: RentBillData):
     try:
@@ -103,7 +121,7 @@ def generate_rent_bill(data: RentBillData):
             doc.render(context)
             doc.save(output_docx)
 
-            # Convert DOCX to PDF using LibreOffice
+            # Convert DOCX to PDF using Wine
             convert_docx_to_pdf(output_docx, output_pdf)
 
             # Read the PDF file into memory
